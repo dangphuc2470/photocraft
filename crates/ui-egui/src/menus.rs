@@ -242,7 +242,17 @@ pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id:
                             crate::notices::post(app, title, lines, false, None);
                             app.save_as_with(None, tga_bits)
                         }
-                        // A flat file asks for its name; confirming its own file records a
+                        Some((false, path, d))
+                            if !photocraft_engine::file_cmds::saves_in_place(&path)
+                                && crate::plain_raster(&d.doc).is_some()
+                                && photocraft_engine::file_cmds::extension(&path)
+                                    .and_then(|e| photocraft_codecs::from_extension(&e))
+                                    .is_some_and(|f| f.caps().write) =>
+                        {
+                            // A single-layer flat image saves directly back over its original file, as in Photoshop.
+                            app.save_in_place(path)
+                        }
+                        // A flat file with multiple layers or unsavable structures asks for its name; confirming its own file records a
                         // plain Save that writes the file an action is played on (#3531).
                         _ => app.save_dialog_flow(None, tga_bits, true),
                     }

@@ -254,3 +254,29 @@ fn save_settings_start_at_the_opened_files_encoding() {
     app.open_bytes("art.webp", &lossless).unwrap();
     assert!(app.save_settings().webp_lossless);
 }
+
+#[test]
+fn flat_single_layer_saves_in_place_without_dialog() {
+    let mut app = app();
+    app.run("file.new", json!({"width": 4, "height": 4, "name": "test.png"})).unwrap();
+    let written = Rc::new(RefCell::new(Vec::new()));
+    let w = written.clone();
+    app.services.write = Some(Box::new(move |path, _| {
+        w.borrow_mut().push(path.to_string());
+        Ok(())
+    }));
+    let ctx = egui::Context::default();
+    menus::invoke(&mut app, &ctx, "file.saveAs", json!({"path": "test.png"})).unwrap();
+    assert_eq!(app.session.active().unwrap().path.as_deref(), Some("test.png"));
+    written.borrow_mut().clear();
+
+    // Edit the layer
+    app.run("edit.fill", json!({"color": "#ff0000"})).unwrap();
+    let rev_before = app.session.active().unwrap().revision;
+    menus::invoke(&mut app, &ctx, "file.save", json!({})).unwrap();
+    assert_eq!(*written.borrow(), ["test.png"]);
+    let st = app.session.active().unwrap();
+    assert_eq!(st.saved_revision, rev_before);
+    assert_eq!(st.path.as_deref(), Some("test.png"));
+}
+
