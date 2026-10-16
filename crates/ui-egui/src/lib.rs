@@ -56,6 +56,7 @@ pub mod export_dialog;
 pub mod file_open;
 pub mod file_ui;
 pub mod fill_ui;
+pub mod gen_fill_ui;
 pub mod filter_dialog;
 pub mod gallery_ui;
 pub mod gpu_canvas;
@@ -449,6 +450,8 @@ pub struct PhotocraftApp {
     pub background_jobs: bool,
     /// Background job bookkeeping: opening tabs, control replies waiting on a job.
     pub jobs: jobs_ui::JobsUi,
+    /// Background Generative Fill task receiver: (doc_idx, sel_rect, prompt, result)
+    pub(crate) gen_fill_rx: Option<std::sync::mpsc::Receiver<(usize, photocraft_geom::Rect, String, Result<String, String>)>>,
     #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
     live_tokens: theme::live::LiveTokens,
 }
@@ -533,6 +536,7 @@ impl PhotocraftApp {
             stylus: Default::default(),
             background_jobs: false,
             jobs: Default::default(),
+            gen_fill_rx: None,
             #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
             live_tokens: theme::live::LiveTokens::from_env(),
         };

@@ -839,6 +839,15 @@ pub struct UiState {
     pub camera_raw_scope: CameraRawScopeState,
     #[serde(default)]
     pub camera_raw_preview: CameraRawPreviewState,
+    /// Generative Fill prompt and contextual taskbar state
+    #[serde(default)]
+    pub gen_fill_prompt: String,
+    #[serde(default)]
+    pub gen_fill_active: bool,
+    #[serde(default)]
+    pub gen_fill_loading: bool,
+    #[serde(default)]
+    pub gen_fill_status: Option<String>,
 }
 
 impl Default for UiState {
@@ -898,6 +907,10 @@ impl Default for UiState {
             chrome: Default::default(),
             camera_raw_scope: Default::default(),
             camera_raw_preview: Default::default(),
+            gen_fill_prompt: String::new(),
+            gen_fill_active: false,
+            gen_fill_loading: false,
+            gen_fill_status: None,
         }
     }
 }

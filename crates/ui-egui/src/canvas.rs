@@ -2105,6 +2105,16 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
     if primary && app.ui.extras.rulers {
         crate::rulers::draw_rulers(app, ui, full, &xf);
     }
+    // Contextual Task Bar for active selection (Generative Fill)
+    if primary {
+        if let Some(sel) = &doc.selection {
+            let b = app.cached_bounds(u64::MAX - doc.id.0, sel);
+            if !b.is_empty() {
+                let screen_b = xf.doc_rect(b);
+                crate::gen_fill_ui::contextual_taskbar(app, ui, idx, b, screen_b);
+            }
+        }
+    }
     if primary {
         app.ui.views[idx] = view.clone();
     }
