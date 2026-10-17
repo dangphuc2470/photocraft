@@ -266,7 +266,16 @@ fn trigger_generation(
         let log_str = log_path.to_string_lossy().to_string();
         let status_str = status_path.to_string_lossy().to_string();
 
-        let status = std::process::Command::new(node_exe)
+        #[cfg(target_os = "windows")]
+        use std::os::windows::process::CommandExt;
+        #[cfg(target_os = "windows")]
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+        let mut cmd = std::process::Command::new(node_exe);
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        let status = cmd
             .arg(&worker_js)
             .arg("--prompt")
             .arg(&prompt)
