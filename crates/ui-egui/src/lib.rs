@@ -828,6 +828,8 @@ pub struct PhotocraftApp {
     pub jobs: jobs_ui::JobsUi,
     /// Background Generative Fill task receiver: (doc_idx, sel_rect, prompt, result)
     pub(crate) gen_fill_rx: Option<std::sync::mpsc::Receiver<(usize, photocraft_geom::Rect, String, Result<String, String>)>>,
+    /// Active screen rectangle of Contextual Taskbar for mouse hover detection
+    pub(crate) gen_fill_rect: Option<egui::Rect>,
     #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
     live_tokens: theme::live::LiveTokens,
 }
@@ -966,6 +968,7 @@ impl PhotocraftApp {
             last_frame_start_ms: 0.0,
             jobs: Default::default(),
             gen_fill_rx: None,
+            gen_fill_rect: None,
             #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
             live_tokens: theme::live::LiveTokens::from_env(),
         };

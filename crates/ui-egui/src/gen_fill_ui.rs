@@ -7,6 +7,29 @@ use photocraft_geom::Rect as DRect;
 
 use crate::PhotocraftApp;
 
+/// Calculates screen rectangle for the Contextual Task Bar
+pub fn taskbar_rect(app: &PhotocraftApp, clip: Rect, screen_rect: Rect) -> Rect {
+    let is_active = app.ui.gen_fill_active;
+    let is_loading = app.ui.gen_fill_loading;
+    let bar_width = if is_loading {
+        440.0
+    } else if is_active {
+        440.0
+    } else {
+        230.0
+    };
+    let bar_height = 40.0;
+
+    let pos_x = (screen_rect.center().x - bar_width / 2.0).clamp(clip.min.x + 12.0, clip.max.x - bar_width - 12.0);
+    let mut pos_y = screen_rect.max.y + 14.0;
+    if pos_y + bar_height > clip.max.y - 28.0 {
+        // Position above selection if hugging the bottom canvas boundary
+        pos_y = (screen_rect.min.y - bar_height - 14.0).max(clip.min.y + 36.0);
+    }
+
+    Rect::from_min_size(pos2(pos_x, pos_y), vec2(bar_width, bar_height))
+}
+
 /// Checks asynchronous inpainting results and renders the Contextual Taskbar under selection.
 pub fn contextual_taskbar(
     app: &mut PhotocraftApp,
@@ -44,39 +67,26 @@ pub fn contextual_taskbar(
 
     // 2. Position the Contextual Task Bar
     let clip = ui.clip_rect();
-    let is_active = app.ui.gen_fill_active;
     let is_loading = app.ui.gen_fill_loading;
-    let bar_width = if is_loading {
-        440.0
-    } else if is_active {
-        440.0
-    } else {
-        230.0
-    };
-    let bar_height = 40.0;
+    let is_active = app.ui.gen_fill_active;
+    let bar_rect = taskbar_rect(app, clip, screen_rect);
 
-    let pos_x = (screen_rect.center().x - bar_width / 2.0).clamp(clip.min.x + 12.0, clip.max.x - bar_width - 12.0);
-    let mut pos_y = screen_rect.max.y + 14.0;
-    if pos_y + bar_height > clip.max.y - 28.0 {
-        // Position above selection if hugging the bottom canvas boundary
-        pos_y = (screen_rect.min.y - bar_height - 14.0).max(clip.min.y + 36.0);
-    }
-
-    let bar_rect = Rect::from_min_size(pos2(pos_x, pos_y), vec2(bar_width, bar_height));
-
-    // 3. Render Floating Task Bar
+    // 3. Render Floating Task Bar in Foreground Area
     let mut trigger_gen = false;
     let mut cancel_active = false;
     let mut deselect = false;
     let mut enter_active = false;
 
-    ui.scope_builder(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
-        egui::Frame::new()
-            .fill(Color32::from_rgb(26, 26, 29))
-            .stroke(Stroke::new(1.0, Color32::from_rgb(52, 53, 58)))
-            .corner_radius(CornerRadius::same(9))
-            .inner_margin(Margin::symmetric(10, 6))
-            .show(ui, |ui| {
+    let area_res = egui::Area::new(egui::Id::new("pc-contextual-taskbar"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(bar_rect.min)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::new()
+                .fill(Color32::from_rgb(26, 26, 29))
+                .stroke(Stroke::new(1.0, Color32::from_rgb(52, 53, 58)))
+                .corner_radius(CornerRadius::same(9))
+                .inner_margin(Margin::symmetric(10, 6))
+                .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing = vec2(8.0, 0.0);
 
@@ -158,6 +168,8 @@ pub fn contextual_taskbar(
                 });
             });
     });
+
+    app.gen_fill_rect = Some(area_res.response.rect);
 
     if enter_active {
         app.ui.gen_fill_active = true;

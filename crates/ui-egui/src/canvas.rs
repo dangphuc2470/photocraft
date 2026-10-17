@@ -3950,7 +3950,23 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
             };
             ui.ctx().set_cursor_icon(icon);
         } else if let Some(p) = response.hover_pos() {
-            let alt = ui.input(|i| i.modifiers.alt);
+            let over_taskbar = primary && (app.gen_fill_rect.is_some_and(|r| r.contains(p)) || {
+                if let Some(sel) = &doc.selection {
+                    let b = app.cached_bounds(u64::MAX - doc.id.0, sel);
+                    if !b.is_empty() {
+                        let screen_b = xf.doc_rect(b);
+                        crate::gen_fill_ui::taskbar_rect(app, ui.clip_rect(), screen_b).contains(p)
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            });
+            if over_taskbar {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
+            } else {
+                let alt = ui.input(|i| i.modifiers.alt);
             if !resizing && !alt && !app.ui.shell.sticky_alt {
                 draw_clone_preview(app, &painter, &xf, xf.to_doc(p), output);
             }
@@ -4106,6 +4122,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
             }
             // ⇧ after a stroke: the straight line a click would paint (#257).
             crate::stroke_constraint::draw_line_preview(app, &painter, &xf, p, tool, held.shift);
+            }
         }
     }
     if primary && hand_pan && response.dragged() {
@@ -4150,12 +4167,17 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
     crate::rotate_view::overlay(app, &ctx, &painter, &xf, &mut view, &response);
     // Contextual Task Bar for active selection (Generative Fill)
     if primary {
+        let mut shown = false;
         if let Some(sel) = &doc.selection {
             let b = app.cached_bounds(u64::MAX - doc.id.0, sel);
             if !b.is_empty() {
                 let screen_b = xf.doc_rect(b);
                 crate::gen_fill_ui::contextual_taskbar(app, ui, idx, b, screen_b);
+                shown = true;
             }
+        }
+        if !shown {
+            app.gen_fill_rect = None;
         }
     }
     if primary {
