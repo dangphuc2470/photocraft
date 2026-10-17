@@ -2719,7 +2719,7 @@ struct RowSel {
 /// `layer.select` mode for a click with these modifiers (Photoshop: ⌘-click toggles, ⇧-click
 /// selects a range, a plain click selects one layer).
 fn select_mode(m: egui::Modifiers) -> &'static str {
-    if m.command {
+    if m.command || m.ctrl {
         "toggle"
     } else if m.shift {
         "range"
@@ -2940,7 +2940,7 @@ fn layer_row(
     // ⌘-click a layer, mask or vector-mask thumbnail loads its transparency / mask / path as a
     // selection (⇧ add, ⌥ subtract, ⇧⌥ intersect) instead of changing the layer selection.
     let thumb_load = resp.clicked().then(|| (ui.input(|i| i.modifiers), resp.interact_pointer_pos())).and_then(|(m, pos)| {
-        let p = pos.filter(|_| m.command)?;
+        let p = pos.filter(|_| m.command || m.ctrl)?;
         if let Some(kind) = masks.hit(p) {
             return Some(crate::mask_thumbs_ui::load_params(l, kind, m));
         }
