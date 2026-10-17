@@ -124,6 +124,10 @@ pub fn contextual_taskbar(
                         .on_hover_text("Inpaint or modify active selection using generative AI (Gemini)");
                         if fill_btn.clicked() {
                             enter_active = true;
+                            let edit_id = ui.make_persistent_id("gen_fill_prompt_edit");
+                            let focus_key = egui::Id::new("gen_fill_prompt_focus");
+                            ui.data_mut(|d| d.insert_temp(focus_key, true));
+                            ui.memory_mut(|m| m.request_focus(edit_id));
                         }
 
                         ui.separator();
@@ -134,11 +138,18 @@ pub fn contextual_taskbar(
                     } else {
                         ui.label(RichText::new("AI").color(Color32::from_rgb(130, 195, 255)).strong().size(13.0));
 
+                        let edit_id = ui.make_persistent_id("gen_fill_prompt_edit");
                         let text_edit = ui.add(
                             egui::TextEdit::singleline(&mut app.ui.gen_fill_prompt)
+                                .id(edit_id)
                                 .hint_text("Describe what you want to generate or modify...")
                                 .desired_width(260.0),
                         );
+
+                        let focus_key = egui::Id::new("gen_fill_prompt_focus");
+                        if ui.data_mut(|d| d.remove_temp::<bool>(focus_key).unwrap_or(false)) {
+                            text_edit.request_focus();
+                        }
 
                         if text_edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                             trigger_gen = true;
