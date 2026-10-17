@@ -126,3 +126,52 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool) -> bo
     }
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::PhotocraftApp;
+    use crate::canvas::{ToolEvent, tool_event};
+
+    fn app() -> PhotocraftApp {
+        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        app.run("file.new", json!({"width": 64, "height": 64, "background": "white"})).unwrap();
+        app.run("layer.new.layerFromBackground", json!({})).unwrap();
+        app.run("tools.setBrush", json!({"brush": {"size": 8, "hardness": 1.0}})).unwrap();
+        app.session.tools.brush.smoothing.amount = 0.0;
+        app
+    }
+
+    fn alpha(app: &PhotocraftApp, x: i32, y: i32) -> f32 {
+        app.session.documents()[0].doc.layers[0].surface().unwrap().rgba(x, y)[3]
+    }
+
+    #[test]
+    fn erase_to_history_restores_opening_pixels() {
+        let mut app = app();
+        assert!(alpha(&app, 20, 20) > 0.9);
+
+        // 1. Regular erase clears pixels to transparent
+        app.ui.tool = Tool::Eraser;
+        tool_event(&mut app, ToolEvent::Down { x: 20.0, y: 20.0, pressure: 1.0 }, egui::Modifiers::NONE);
+        tool_event(&mut app, ToolEvent::Up { x: 20.0, y: 20.0 }, egui::Modifiers::NONE);
+        assert!(alpha(&app, 20, 20) < 0.1);
+
+        // 2. Erase to History checkbox checked restores pixels from opening snapshot
+        app.ui.tool_options.eraser_to_history = true;
+        tool_event(&mut app, ToolEvent::Down { x: 20.0, y: 20.0, pressure: 1.0 }, egui::Modifiers::NONE);
+        tool_event(&mut app, ToolEvent::Up { x: 20.0, y: 20.0 }, egui::Modifiers::NONE);
+        assert!(alpha(&app, 20, 20) > 0.9);
+
+        // 3. Alt modifier inverts mode: temporarily erases even if checkbox is checked
+        tool_event(&mut app, ToolEvent::Down { x: 20.0, y: 20.0, pressure: 1.0 }, egui::Modifiers::ALT);
+        tool_event(&mut app, ToolEvent::Up { x: 20.0, y: 20.0 }, egui::Modifiers::ALT);
+        assert!(alpha(&app, 20, 20) < 0.1);
+
+        // 4. Alt modifier with checkbox unchecked temporarily restores
+        app.ui.tool_options.eraser_to_history = false;
+        tool_event(&mut app, ToolEvent::Down { x: 20.0, y: 20.0, pressure: 1.0 }, egui::Modifiers::ALT);
+        tool_event(&mut app, ToolEvent::Up { x: 20.0, y: 20.0 }, egui::Modifiers::ALT);
+        assert!(alpha(&app, 20, 20) > 0.9);
+    }
+}

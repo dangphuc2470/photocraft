@@ -687,6 +687,9 @@ pub struct ToolOptions {
     /// `paint.pencil`), as in Photoshop's options bar (#2662).
     #[serde(default = "default_eraser_mode")]
     pub eraser_mode: String,
+    /// Eraser › Erase to History (Photoshop options bar): paints from the document's opening state.
+    #[serde(default)]
+    pub eraser_to_history: bool,
     /// Magnetic Lasso: detection width (px, 1..256), edge contrast (%, 1..100), how often it
     /// fastens points by itself (0..100), and whether pen pressure narrows the width.
     pub magnetic_width: f32,
@@ -852,6 +855,7 @@ impl Default for ToolOptions {
             brush_clear: false,
             pencil_clear: false,
             eraser_mode: default_eraser_mode(),
+            eraser_to_history: false,
             magnetic_width: 10.0,
             magnetic_contrast: 10.0,
             magnetic_frequency: 57.0,

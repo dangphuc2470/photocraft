@@ -1021,9 +1021,12 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                         opt_label(ui, tl!("Smoothing"));
                         smoothing_field(ui, b, 58.0);
                         smoothing_options(ui, b);
-                        widgets::vline(ui, 22.0);
                         if icons::button(ui, "circle-dot", 24.0, b.pressure_size, tl!("Always use pressure for size")).clicked() {
                             b.pressure_size = !b.pressure_size;
+                        }
+                        if app.ui.tool == Tool::Eraser {
+                            widgets::vline(ui, 22.0);
+                            widgets::checkbox(ui, &mut app.ui.tool_options.eraser_to_history, tl!("Erase to History"));
                         }
                     }
                     // Pencil: Photoshop's options (no hardness or flow: the pencil is always hard).
@@ -1073,6 +1076,10 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                         widgets::vline(ui, 22.0);
                         widgets::toggle(ui, &mut b.pressure_size, tl!("Pressure for Size"));
                         widgets::toggle(ui, &mut b.pressure_opacity, tl!("Pressure for Opacity"));
+                        if app.ui.tool == Tool::Eraser {
+                            widgets::vline(ui, 22.0);
+                            widgets::checkbox(ui, &mut app.ui.tool_options.eraser_to_history, tl!("Erase to History"));
+                        }
                     }
                     Tool::MixerBrush => {
                         brush_preset_chip(ui, b, &mut app.ui);

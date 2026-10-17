@@ -5524,6 +5524,9 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
             }
             // ⌥ flips Dodge/Burn and Blur/Sharpen for this stroke.
             let tool = crate::retouch_ui::alt_flipped(tool, mods.alt);
+            let to_history = tool == Tool::Eraser && (app.ui.tool_options.eraser_to_history ^ mods.alt);
+            let tool = if to_history { Tool::HistoryBrush } else { tool };
+            let erase = if to_history { false } else { erase };
             app.drag = Some(Drag { clear, ..Drag::new(tool, from.map_or([x, y], |p| [p[0], p[1]]), points, mods, erase) });
             app.trail = None;
             app.stylus.begin_stroke();
