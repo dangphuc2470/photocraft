@@ -3178,12 +3178,11 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         // the Marching Ants view and hides the ants in the others.
         let refined = crate::select_mask_view::ants(app, idx);
         let (outlined, k) = match &refined {
-            None => (doc.selection.as_ref(), 1),
-            Some(None) => (None, 1),
             Some(Some((proxy, k))) => (proxy.selection.as_ref(), (*k).max(1)),
+            _ => (doc.selection.as_ref(), 1),
         };
-        // Selection outline: true boundary, animated marching ants (cached per revision).
-        if let Some(sel) = outlined.filter(|_| app.ui.view.shows(app.ui.view.show.selection_edges) && !polygon_replaces_selection(app)) {
+        // Selection outline: true boundary, animated marching ants (always visible whenever a selection exists).
+        if let Some(sel) = outlined.filter(|_| !polygon_replaces_selection(app)) {
             // Trace at display resolution over the visible part only; key by the mask's tile identity
             // (not the document revision) so unrelated edits don't re-trace it. The step is in
             // device pixels per document pixel (`View::zoom`, not the point zoom), so a 1 px
@@ -5877,11 +5876,8 @@ pub(crate) fn finish_gesture(app: &mut PhotocraftApp, d: Drag) {
         Tool::Type | Tool::VerticalType | Tool::HorizontalTypeMask | Tool::VerticalTypeMask => crate::type_tool::pointer_up(app, d.start, [end[0], end[1]]),
         Tool::Brush | Tool::Pencil | Tool::Eraser => commit_brush_stroke(app, &d),
         Tool::RectMarquee | Tool::EllipseMarquee => {
-            // Exactly what the drag showed (`marquee_preview_px`); a click deselects.
+            // Exactly what the drag showed (`marquee_preview_px`); preserve existing selection on accidental clicks.
             let Some([x0, y0, x1, y1]) = marquee_preview_px(&app.ui.tool_options, &d, app.point_zoom()) else {
-                if app.session.is_enabled("select.deselect") {
-                    let _ = app.run("select.deselect", json!({}));
-                }
                 return;
             };
             let mode = selection_mode(app, d.modifiers);

@@ -56,8 +56,7 @@ pub fn contextual_taskbar(
                 app.ui.gen_fill_active = false;
                 app.ui.gen_fill_prompt.clear();
                 app.ui.gen_fill_status = None;
-                // Deselect selection upon successful generation
-                let _ = app.run("select.deselect", serde_json::json!({}));
+                // Keep selection active so marching ants stay visible
             }
             Err(err) => {
                 app.ui.gen_fill_status = Some(err);
@@ -124,10 +123,8 @@ pub fn contextual_taskbar(
                         .on_hover_text("Inpaint or modify active selection using generative AI (Gemini)");
                         if fill_btn.clicked() {
                             enter_active = true;
-                            let edit_id = ui.make_persistent_id("gen_fill_prompt_edit");
                             let focus_key = egui::Id::new("gen_fill_prompt_focus");
                             ui.data_mut(|d| d.insert_temp(focus_key, true));
-                            ui.memory_mut(|m| m.request_focus(edit_id));
                         }
 
                         ui.separator();
@@ -401,7 +398,7 @@ fn apply_generated_result(
     };
 
     let edit_res = app.session.edit(&label, |doc, active| {
-        let fmt = photocraft_color::PixelFormat::new(doc.mode, doc.depth, true);
+        let fmt = photocraft_color::PixelFormat::RGBA8;
         let mut surf = photocraft_raster::Surface::new(fmt);
         let target_rect = photocraft_geom::Rect::new(
             sel_rect.x0,
