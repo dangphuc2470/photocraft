@@ -297,18 +297,18 @@ pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
     };
     let mut answer = ctx.input_mut(|i| buttons.iter().find(|b| b.2.is_some_and(|k| i.consume_key(egui::Modifiers::NONE, k))).map(|b| b.4));
     let labels = button_labels(mac, &buttons.iter().map(|b| (b.1, b.2)).collect::<Vec<_>>());
-    let row: Vec<DialogButton> = buttons
-        .iter()
-        .zip(&labels)
-        .map(|(b, (label, m))| {
-            DialogButton::new(b.0, label, b.3)
-                .mnemonic(*m)
-                .focus(focus && b.0 == ButtonRole::Default)
-        })
-        .collect();
-    let modal = egui::Modal::new(egui::Id::new("discard-prompt")).show(ctx, |ui| {
+    let row: Vec<DialogButton> =
+        buttons.iter().zip(&labels).map(|(b, (label, m))| DialogButton::new(b.0, label, b.3).mnemonic(*m).focus(focus && b.0 == ButtonRole::Default)).collect();
+    let modal = egui::Modal::new(egui::Id::new("discard-prompt")).frame(egui::Frame::popup(&ctx.global_style()).inner_margin(12)).show(ctx, |ui| {
         ui.set_max_width(420.0);
-        ui.label(egui::RichText::new(tl!(&title)).font(crate::theme::semibold(15.0)));
+        let title_label = egui::Label::new(egui::RichText::new(tl!(&title)).font(crate::theme::semibold(15.0))).selectable(false);
+        let title_rect = ui.add(title_label).rect;
+        if !mac && crate::dialogs::CLOSE_BOX {
+            let close_r = crate::dialogs::close_box_rect(ui.max_rect().right(), title_rect.center().y);
+            if crate::dialogs::close_box(ui, close_r) {
+                answer = Some(Answer::Cancel);
+            }
+        }
         ui.add_space(4.0);
         crate::widgets::hairline(ui);
         ui.add_space(8.0);
@@ -405,11 +405,18 @@ fn button_label(mac: bool, label: &str, key: Option<Key>) -> String {
     button_labels(mac, &[(label, key)]).into_iter().next().map(|(l, _)| l).unwrap_or_default()
 }
 
-/// The labels of one dialog's buttons: (text, mnemonic). On non-macOS, if the translation contains
-/// the key, we keep the clean text (e.g. "Yes", "No", "Cancel") and underline the mnemonic.
-/// If the translation doesn't contain the key (e.g. "Ja" with 'Y' or "保存" with 'S'),
-/// we append the key as "Ja (Y)" or "保存 (S)". On macOS, mnemonics are hidden.
+/// The labels of one dialog's buttons: (text, mnemonic).
+/// If all keyed buttons contain their key in the translation, each button shows its clean text
+/// and underlines the mnemonic character.
+/// If any keyed button doesn't contain its key (e.g. German "Ja" with 'Y' or Japanese "保存" with 'S'),
+/// every button appends its key (e.g. "Ja (Y)", "Nein (N)", "Abbrechen (C)") rather than mixing styles (#5564).
+/// On macOS, mnemonics are hidden.
 fn button_labels(mac: bool, buttons: &[(&str, Option<Key>)]) -> Vec<(String, Option<char>)> {
+    let contains_key = |text: &str, k: Key| {
+        let key_char = k.name().chars().next()?;
+        text.chars().any(|c| c.eq_ignore_ascii_case(&key_char)).then_some(key_char)
+    };
+    let inline = !mac && buttons.iter().all(|&(label, key)| key.is_none_or(|k| contains_key(tl!(label), k).is_some()));
     buttons
         .iter()
         .map(|&(label, key)| {
@@ -420,9 +427,8 @@ fn button_labels(mac: bool, buttons: &[(&str, Option<Key>)]) -> Vec<(String, Opt
             if mac {
                 return (text.to_string(), None);
             }
-            let key_char = k.name().chars().next();
-            let contains_key = key_char.is_some_and(|ch| text.chars().any(|c| c.to_ascii_uppercase() == ch.to_ascii_uppercase()));
-            if contains_key {
+            if inline {
+                let key_char = contains_key(text, k);
                 (text.to_string(), key_char)
             } else {
                 (format!("{text} ({})", k.name()), None)
@@ -791,20 +797,11 @@ mod tests {
     #[test]
     fn one_dialog_shows_every_key_in_the_same_style() {
         let buttons = [("Yes", Some(Key::Y)), ("No", Some(Key::N)), ("Cancel", Some(Key::C))];
-        assert_eq!(
-            button_labels(false, &buttons),
-            [("Yes".into(), Some('Y')), ("No".into(), Some('N')), ("Cancel".into(), Some('C'))]
-        );
+        assert_eq!(button_labels(false, &buttons), [("Yes".into(), Some('Y')), ("No".into(), Some('N')), ("Cancel".into(), Some('C'))]);
         let german = crate::i18n::Lang::from_code("de").unwrap();
         crate::i18n::with_language(german, || {
-            assert_eq!(
-                button_labels(false, &buttons),
-                [("Ja (Y)".into(), None), ("Nein".into(), Some('N')), ("Abbrechen".into(), Some('C'))]
-            );
-            assert_eq!(
-                button_labels(true, &buttons),
-                [("Ja".into(), None), ("Nein".into(), None), ("Abbrechen".into(), None)]
-            );
+            assert_eq!(button_labels(false, &buttons), [("Ja (Y)".into(), None), ("Nein (N)".into(), None), ("Abbrechen (C)".into(), None)]);
+            assert_eq!(button_labels(true, &buttons), [("Ja".into(), None), ("Nein".into(), None), ("Abbrechen".into(), None)]);
         });
     }
 
